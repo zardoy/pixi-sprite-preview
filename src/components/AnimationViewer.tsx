@@ -13,8 +13,10 @@ export const AnimationViewer = ({ files, onBack }: AnimationViewerProps) => {
   const appRef = useRef<Application | null>(null);
   const spriteRef = useRef<Sprite | null>(null);
   const texturesRef = useRef<Texture[]>([]);
+  const blobUrlsRef = useRef<string[]>([]);
   const animationFrameRef = useRef<number | null>(null);
   const lastTimeRef = useRef<number>(0);
+  const hasInitializedRef = useRef<boolean>(false);
 
   const [currentFrame, setCurrentFrame] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
@@ -23,11 +25,15 @@ export const AnimationViewer = ({ files, onBack }: AnimationViewerProps) => {
   const [bgColor, setBgColor] = useState("#1a1625");
   const [interpolate, setInterpolate] = useState(false);
 
-  // Sort files by name to ensure correct sequence
+  // Sort files by name to ensure correct sequence (memoize to prevent re-sorts)
   const sortedFiles = [...files].sort((a, b) => a.name.localeCompare(b.name));
   const totalFrames = sortedFiles.length;
 
+  // Initialize PixiJS only once
   useEffect(() => {
+    if (hasInitializedRef.current) return;
+    hasInitializedRef.current = true;
+
     const initPixi = async () => {
       if (!canvasRef.current) return;
 
@@ -39,25 +45,27 @@ export const AnimationViewer = ({ files, onBack }: AnimationViewerProps) => {
           antialias: true,
         });
 
-        if (!canvasRef.current) return; // Double check after async init
+        if (!canvasRef.current) return;
         canvasRef.current.appendChild(app.canvas);
         appRef.current = app;
 
-        // Load textures from File objects using Texture.from
+        // Load textures from File objects and keep blob URLs
         const textures: Texture[] = [];
+        const blobUrls: string[] = [];
+        
         for (const file of sortedFiles) {
           try {
             const url = URL.createObjectURL(file);
+            blobUrls.push(url);
             const texture = await Texture.from(url);
             textures.push(texture);
-            // Clean up blob URL after texture is loaded
-            URL.revokeObjectURL(url);
           } catch (err) {
             console.error(`Failed to load texture from ${file.name}:`, err);
           }
         }
         
         texturesRef.current = textures;
+        blobUrlsRef.current = blobUrls;
 
         if (textures.length > 0) {
           const sprite = new Sprite(textures[0]);
@@ -87,6 +95,8 @@ export const AnimationViewer = ({ files, onBack }: AnimationViewerProps) => {
     initPixi();
 
     return () => {
+      hasInitializedRef.current = false;
+      
       if (animationFrameRef.current) {
         cancelAnimationFrame(animationFrameRef.current);
       }
@@ -108,8 +118,18 @@ export const AnimationViewer = ({ files, onBack }: AnimationViewerProps) => {
         }
       });
       texturesRef.current = [];
+      
+      // Clean up blob URLs
+      blobUrlsRef.current.forEach(url => {
+        try {
+          URL.revokeObjectURL(url);
+        } catch (err) {
+          console.error("Error revoking blob URL:", err);
+        }
+      });
+      blobUrlsRef.current = [];
     };
-  }, [sortedFiles]);
+  }, []); // Only run once
 
   // Update background color
   useEffect(() => {
