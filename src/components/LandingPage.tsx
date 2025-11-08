@@ -1,32 +1,63 @@
 import { Upload, FolderOpen } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { useRef } from "react";
+import { toast } from "sonner";
 
 interface LandingPageProps {
   onFolderSelect: (files: File[]) => void;
 }
 
 export const LandingPage = ({ onFolderSelect }: LandingPageProps) => {
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  
+  const handleFileInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || []).filter(file => 
+      file.type.startsWith("image/")
+    );
+    
+    if (files.length > 0) {
+      onFolderSelect(files);
+    } else {
+      toast.error("No image files found in selection");
+    }
+  };
+
   const handleFolderClick = async () => {
     try {
-      // @ts-ignore - File System Access API
-      const dirHandle = await window.showDirectoryPicker();
-      const files: File[] = [];
-      
-      for await (const entry of dirHandle.values()) {
-        if (entry.kind === "file") {
-          const file = await entry.getFile();
-          if (file.type.startsWith("image/")) {
-            files.push(file);
+      // Try File System Access API first (works in standalone browser, not in iframes)
+      if ('showDirectoryPicker' in window) {
+        // @ts-ignore - File System Access API
+        const dirHandle = await window.showDirectoryPicker();
+        const files: File[] = [];
+        
+        for await (const entry of dirHandle.values()) {
+          if (entry.kind === "file") {
+            const file = await entry.getFile();
+            if (file.type.startsWith("image/")) {
+              files.push(file);
+            }
           }
         }
+        
+        if (files.length > 0) {
+          onFolderSelect(files);
+        } else {
+          toast.error("No image files found in folder");
+        }
+      } else {
+        // Fallback to file input
+        fileInputRef.current?.click();
       }
-      
-      if (files.length > 0) {
-        onFolderSelect(files);
+    } catch (err: any) {
+      // If user cancels or API not available in iframe, use fallback
+      if (err.name === "SecurityError" || err.name === "AbortError") {
+        toast.info("Using file picker instead (multiple files selection)");
+        fileInputRef.current?.click();
+      } else {
+        console.error("Error selecting folder:", err);
+        toast.error("Error selecting folder");
       }
-    } catch (err) {
-      console.error("Error selecting folder:", err);
     }
   };
 
@@ -66,6 +97,15 @@ export const LandingPage = ({ onFolderSelect }: LandingPageProps) => {
 
   return (
     <div className="min-h-screen flex items-center justify-center p-6 bg-gradient-to-br from-background via-background to-secondary">
+      <input
+        ref={fileInputRef}
+        type="file"
+        multiple
+        accept="image/*"
+        onChange={handleFileInputChange}
+        className="hidden"
+        {...({ webkitdirectory: "", directory: "" } as any)}
+      />
       <Card className="max-w-2xl w-full p-12 text-center border-2 border-dashed border-border hover:border-primary/50 transition-colors">
         <div
           onDrop={handleDrop}
@@ -96,7 +136,7 @@ export const LandingPage = ({ onFolderSelect }: LandingPageProps) => {
               className="gap-2 font-semibold"
             >
               <FolderOpen className="w-5 h-5" />
-              Select Folder
+              Select Files
             </Button>
           </div>
 

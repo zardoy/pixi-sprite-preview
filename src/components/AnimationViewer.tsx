@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Application, Assets, Sprite, Texture } from "pixi.js";
+import { Application, Sprite, Texture } from "pixi.js";
 import { Controls } from "./Controls";
 import { toast } from "sonner";
 
@@ -31,41 +31,56 @@ export const AnimationViewer = ({ files, onBack }: AnimationViewerProps) => {
     const initPixi = async () => {
       if (!canvasRef.current) return;
 
-      const app = new Application();
-      await app.init({
-        background: bgColor,
-        resizeTo: canvasRef.current,
-        antialias: true,
-      });
+      try {
+        const app = new Application();
+        await app.init({
+          background: bgColor,
+          resizeTo: canvasRef.current,
+          antialias: true,
+        });
 
-      canvasRef.current.appendChild(app.canvas);
-      appRef.current = app;
+        if (!canvasRef.current) return; // Double check after async init
+        canvasRef.current.appendChild(app.canvas);
+        appRef.current = app;
 
-      // Load textures
-      const textures: Texture[] = [];
-      for (const file of sortedFiles) {
-        const url = URL.createObjectURL(file);
-        const texture = await Assets.load(url);
-        textures.push(texture);
-      }
-      texturesRef.current = textures;
-
-      if (textures.length > 0) {
-        const sprite = new Sprite(textures[0]);
-        sprite.anchor.set(0.5);
-        sprite.position.set(app.screen.width / 2, app.screen.height / 2);
+        // Load textures from File objects using Texture.from
+        const textures: Texture[] = [];
+        for (const file of sortedFiles) {
+          try {
+            const url = URL.createObjectURL(file);
+            const texture = await Texture.from(url);
+            textures.push(texture);
+            // Clean up blob URL after texture is loaded
+            URL.revokeObjectURL(url);
+          } catch (err) {
+            console.error(`Failed to load texture from ${file.name}:`, err);
+          }
+        }
         
-        // Scale sprite to fit canvas while maintaining aspect ratio
-        const scale = Math.min(
-          app.screen.width / sprite.width * 0.8,
-          app.screen.height / sprite.height * 0.8
-        );
-        sprite.scale.set(scale);
-        
-        app.stage.addChild(sprite);
-        spriteRef.current = sprite;
+        texturesRef.current = textures;
 
-        toast.success(`Loaded ${textures.length} frames`);
+        if (textures.length > 0) {
+          const sprite = new Sprite(textures[0]);
+          sprite.anchor.set(0.5);
+          sprite.position.set(app.screen.width / 2, app.screen.height / 2);
+          
+          // Scale sprite to fit canvas while maintaining aspect ratio
+          const scale = Math.min(
+            app.screen.width / sprite.width * 0.8,
+            app.screen.height / sprite.height * 0.8
+          );
+          sprite.scale.set(scale);
+          
+          app.stage.addChild(sprite);
+          spriteRef.current = sprite;
+
+          toast.success(`Loaded ${textures.length} frames`);
+        } else {
+          toast.error("Failed to load any frames");
+        }
+      } catch (err) {
+        console.error("Error initializing PixiJS:", err);
+        toast.error("Failed to initialize animation viewer");
       }
     };
 
@@ -76,9 +91,23 @@ export const AnimationViewer = ({ files, onBack }: AnimationViewerProps) => {
         cancelAnimationFrame(animationFrameRef.current);
       }
       if (appRef.current) {
-        appRef.current.destroy(true);
+        try {
+          appRef.current.destroy(true, { children: true, texture: false });
+        } catch (err) {
+          console.error("Error destroying PixiJS app:", err);
+        }
       }
-      texturesRef.current.forEach(texture => texture.destroy(true));
+      // Clean up textures
+      texturesRef.current.forEach(texture => {
+        try {
+          if (texture) {
+            texture.destroy(true);
+          }
+        } catch (err) {
+          console.error("Error destroying texture:", err);
+        }
+      });
+      texturesRef.current = [];
     };
   }, [sortedFiles]);
 
