@@ -49,28 +49,51 @@ export const AnimationViewer = ({ files, onBack }: AnimationViewerProps) => {
         canvasRef.current.appendChild(app.canvas);
         appRef.current = app;
 
-        // Load textures from File objects and keep blob URLs
+        console.log(`Starting to load ${sortedFiles.length} textures...`);
+
+        // Load textures by creating Image elements first, then textures
         const textures: Texture[] = [];
         const blobUrls: string[] = [];
         
-        for (const file of sortedFiles) {
+        for (let i = 0; i < sortedFiles.length; i++) {
+          const file = sortedFiles[i];
           try {
+            console.log(`Loading frame ${i + 1}/${sortedFiles.length}: ${file.name}`);
             const url = URL.createObjectURL(file);
             blobUrls.push(url);
-            const texture = await Texture.from(url);
+            
+            // Load image first
+            const img = new Image();
+            await new Promise((resolve, reject) => {
+              img.onload = resolve;
+              img.onerror = reject;
+              img.src = url;
+            });
+            
+            console.log(`Image loaded for ${file.name}, creating texture...`);
+            
+            // Create texture from loaded image
+            const texture = Texture.from(img);
             textures.push(texture);
+            
+            console.log(`Texture created successfully for frame ${i + 1}`);
           } catch (err) {
             console.error(`Failed to load texture from ${file.name}:`, err);
           }
         }
         
+        console.log(`All textures loaded: ${textures.length} total`);
         texturesRef.current = textures;
         blobUrlsRef.current = blobUrls;
 
         if (textures.length > 0) {
+          console.log(`Creating sprite with first texture...`);
           const sprite = new Sprite(textures[0]);
           sprite.anchor.set(0.5);
           sprite.position.set(app.screen.width / 2, app.screen.height / 2);
+          
+          console.log(`Sprite dimensions: ${sprite.width}x${sprite.height}`);
+          console.log(`Canvas dimensions: ${app.screen.width}x${app.screen.height}`);
           
           // Scale sprite to fit canvas while maintaining aspect ratio
           const scale = Math.min(
@@ -79,11 +102,17 @@ export const AnimationViewer = ({ files, onBack }: AnimationViewerProps) => {
           );
           sprite.scale.set(scale);
           
+          console.log(`Applied scale: ${scale}`);
+          
           app.stage.addChild(sprite);
           spriteRef.current = sprite;
 
+          console.log(`Sprite added to stage, rendering...`);
+          app.render();
+
           toast.success(`Loaded ${textures.length} frames`);
         } else {
+          console.error("No textures were loaded successfully");
           toast.error("Failed to load any frames");
         }
       } catch (err) {
