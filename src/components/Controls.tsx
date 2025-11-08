@@ -163,10 +163,16 @@ export const Controls = ({
               id="interpolate"
               checked={interpolate}
               onCheckedChange={onInterpolateChange}
+              disabled={totalFrames <= 1}
             />
-            <Label htmlFor="interpolate" className="cursor-pointer text-xs">
+            <Label
+              htmlFor="interpolate"
+              className={`text-xs ${totalFrames <= 1 ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'}`}
+            >
               Interpolate Frames
-              <span className="text-muted-foreground ml-1">(Experimental)</span>
+              <span className="text-muted-foreground ml-1">
+                {totalFrames <= 1 ? '(Needs 2+ frames)' : '(Experimental)'}
+              </span>
             </Label>
           </div>
         </div>

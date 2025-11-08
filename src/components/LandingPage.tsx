@@ -10,12 +10,12 @@ interface LandingPageProps {
 
 export const LandingPage = ({ onFolderSelect }: LandingPageProps) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
-  
+
   const handleFileInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = Array.from(e.target.files || []).filter(file => 
+    const files = Array.from(e.target.files || []).filter(file =>
       file.type.startsWith("image/")
     );
-    
+
     if (files.length > 0) {
       onFolderSelect(files);
     } else {
@@ -30,7 +30,7 @@ export const LandingPage = ({ onFolderSelect }: LandingPageProps) => {
         // @ts-ignore - File System Access API
         const dirHandle = await window.showDirectoryPicker();
         const files: File[] = [];
-        
+
         for await (const entry of dirHandle.values()) {
           if (entry.kind === "file") {
             const file = await entry.getFile();
@@ -39,7 +39,7 @@ export const LandingPage = ({ onFolderSelect }: LandingPageProps) => {
             }
           }
         }
-        
+
         if (files.length > 0) {
           onFolderSelect(files);
         } else {
@@ -96,7 +96,7 @@ export const LandingPage = ({ onFolderSelect }: LandingPageProps) => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-6 bg-gradient-to-br from-background via-background to-secondary">
+    <div className="min-h-screen flex items-center justify-center p-6 bg-gradient-to-br from-background via-background to-secondary relative">
       <input
         ref={fileInputRef}
         type="file"
@@ -106,7 +106,13 @@ export const LandingPage = ({ onFolderSelect }: LandingPageProps) => {
         className="hidden"
         {...({ webkitdirectory: "", directory: "" } as any)}
       />
-      <Card className="max-w-2xl w-full p-12 text-center border-2 border-dashed border-border hover:border-primary/50 transition-colors">
+      {/* ZARDOY Watermark */}
+      <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+        <div className="text-[20rem] font-bold italic text-white opacity-[0.03] select-none tracking-wider" style={{ fontFamily: 'Impact, "Arial Black", sans-serif' }}>
+          ZARDOY
+        </div>
+      </div>
+      <Card className="max-w-2xl w-full p-12 text-center border-2 border-dashed border-border hover:border-primary/50 transition-colors relative z-10">
         <div
           onDrop={handleDrop}
           onDragOver={(e) => e.preventDefault()}
