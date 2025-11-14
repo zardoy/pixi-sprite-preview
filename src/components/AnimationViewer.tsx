@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Application, Sprite, Texture } from "pixi.js";
+import "pixi.js/basis";
+import "pixi.js/ktx2";
 import { Controls } from "./Controls";
 import { toast } from "sonner";
 
@@ -26,6 +28,7 @@ export const AnimationViewer = ({ files, onBack }: AnimationViewerProps) => {
   const [fps, setFps] = useState(24);
   const [bgColor, setBgColor] = useState("#1a1625");
   const [interpolate, setInterpolate] = useState(false);
+  const [scale, setScale] = useState(1.0);
 
   // Sort files by name to ensure correct sequence (memoize to prevent re-sorts)
   const sortedFiles = [...files].sort((a, b) => a.name.localeCompare(b.name));
@@ -179,6 +182,20 @@ export const AnimationViewer = ({ files, onBack }: AnimationViewerProps) => {
     }
   }, [bgColor]);
 
+  // Update sprite scale
+  useEffect(() => {
+    if (spriteRef.current && nextSpriteRef.current && appRef.current) {
+      const baseScale = Math.min(
+        appRef.current.screen.width / spriteRef.current.texture.width * 0.8,
+        appRef.current.screen.height / spriteRef.current.texture.height * 0.8
+      );
+      const newScale = baseScale * scale;
+      spriteRef.current.scale.set(newScale);
+      nextSpriteRef.current.scale.set(newScale);
+      appRef.current.render();
+    }
+  }, [scale]);
+
   // Animation loop with interpolation support
   useEffect(() => {
     if (!isPlaying || !spriteRef.current || texturesRef.current.length === 0) {
@@ -288,12 +305,15 @@ export const AnimationViewer = ({ files, onBack }: AnimationViewerProps) => {
       } else if (e.code === "ArrowRight") {
         e.preventDefault();
         setCurrentFrame((prev) => (prev < totalFrames - 1 ? prev + 1 : 0));
+      } else if (e.code === "KeyR") {
+        e.preventDefault();
+        onBack();
       }
     };
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [totalFrames]);
+  }, [totalFrames, onBack]);
 
   const handleFrameChange = (frame: number) => {
     setCurrentFrame(frame);
@@ -316,6 +336,8 @@ export const AnimationViewer = ({ files, onBack }: AnimationViewerProps) => {
         onBgColorChange={setBgColor}
         interpolate={interpolate}
         onInterpolateChange={setInterpolate}
+        scale={scale}
+        onScaleChange={setScale}
         onBack={onBack}
       />
       <div ref={canvasRef} className="flex-1" />

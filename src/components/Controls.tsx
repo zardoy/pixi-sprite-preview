@@ -1,4 +1,4 @@
-import { Play, Pause, SkipBack, ArrowLeft } from "lucide-react";
+import { Play, Pause, SkipBack, ArrowLeft, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
@@ -20,6 +20,8 @@ interface ControlsProps {
   onBgColorChange: (color: string) => void;
   interpolate: boolean;
   onInterpolateChange: (interpolate: boolean) => void;
+  scale: number;
+  onScaleChange: (scale: number) => void;
   onBack: () => void;
 }
 
@@ -48,17 +50,29 @@ export const Controls = ({
   onBgColorChange,
   interpolate,
   onInterpolateChange,
+  scale,
+  onScaleChange,
   onBack,
 }: ControlsProps) => {
   const duration = ((totalFrames / fps) * 1000).toFixed(0);
 
   return (
-    <Card className="p-6 rounded-none border-x-0 border-t-0 border-b border-border">
+    <Card className="p-6 rounded-none border-x-0 border-t-0 border-b border-border relative">
       <div className="flex flex-wrap gap-6 items-center justify-between">
         <div className="flex items-center gap-4">
           <Button onClick={onBack} variant="outline" size="sm" className="gap-2">
             <ArrowLeft className="w-4 h-4" />
             Back
+          </Button>
+          <Button
+            onClick={onBack}
+            variant="ghost"
+            size="sm"
+            className="gap-2 text-muted-foreground hover:text-foreground"
+            title="Close preview (R)"
+          >
+            <X className="w-4 h-4" />
+            Close (R)
           </Button>
           <Button
             onClick={onPlayPause}
@@ -174,6 +188,30 @@ export const Controls = ({
                 {totalFrames <= 1 ? '(Needs 2+ frames)' : '(Experimental)'}
               </span>
             </Label>
+          </div>
+
+          <div className="space-y-2">
+            <Label className="text-xs text-muted-foreground">
+              Scale: {Math.round(scale * 100)}%
+            </Label>
+            <div className="flex items-center gap-2 min-w-48">
+              <Slider
+                value={[scale]}
+                onValueChange={(value) => onScaleChange(value[0])}
+                min={0.1}
+                max={5.0}
+                step={0.1}
+                className="flex-1"
+              />
+              <Input
+                type="number"
+                value={Math.round(scale * 100)}
+                onChange={(e) => onScaleChange(Number(e.target.value) / 100)}
+                className="w-20"
+                min={10}
+                max={500}
+              />
+            </div>
           </div>
         </div>
       </div>
